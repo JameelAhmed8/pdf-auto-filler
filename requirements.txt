@@ -1,6 +1,4 @@
 Pillow
-ImageEnhance
-ImageFilter
 fpdf
 pdf2image
 reportlab
