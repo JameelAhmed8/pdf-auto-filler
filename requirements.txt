@@ -1,3 +1,4 @@
+poppler
 Pillow
 fpdf
 pdf2image
@@ -5,3 +6,4 @@ reportlab
 pytesseract
 replicate
 fillpdf
+poppler
