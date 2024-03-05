@@ -1,3 +1,4 @@
+Pillow
 ImageEnhance
 ImageFilter
 fpdf
