@@ -4,3 +4,4 @@ reportlab
 pytesseract
 replicate
 fillpdf
+poppler-utils
