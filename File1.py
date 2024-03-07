@@ -10,9 +10,11 @@ from reportlab.pdfgen import canvas
 import pytesseract
 import replicate
 from fillpdf import fillpdfs
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
 
 # Set the Replicate API token
-os.environ["REPLICATE_API_TOKEN"] = "r8_8betJvhokQjMch86dLopatR91XA0Q0D2euZzf"
+os.environ["REPLICATE_API_TOKEN"] = "r8_XVYY2HcLZ3ICYEDpidB0UF04htcRikg4QTvhZ"
 
 
 def convert_pdf_to_images_and_create_pdf(pdf_path, output_folder, output_pdf_path):
@@ -120,33 +122,48 @@ if uploaded_file is not None:
     input_params = {
         "debug": False,
         "prompt": (
-            "Given a list of fields with empty values in the format 'Field Name: ', followed by raw text containing client information, your task is to extract and match field names mentioned in the raw text with the provided list of fields. If a field name or a potentially similar piece of information exists in the raw text, extract the corresponding value and output the final structure in the format 'Field Name: Value'.\n\n"
+            "Given a list of fields with empty values in the format 'Field Name: ', followed by raw text containing client information, your task is to extract and match field names mentioned in the raw text with the provided list of fields. If a field name or a potentially similar piece of information exists in the raw text, extract the corresponding value and output the final structure in the format 'Field Name: Value' Please keep in mind that you are not allowed to change the spelling of the Field Name that I am giving you not even if there are extra spaces or mistakes.\n\n"
             "SVP Name\n"
             "Primary Insured\n"
             "Primary DOB Month\n"
             "Primary DOB Date\n"
             "Primary DOB Year\n"
+            "Gender 1\n"
             "Primary Phone\n"
             "Second Insured\n"
             "Secondary DOB Month\n"
             "Secondary DOB Date\n"
             "Secondary DOB Year\n"
+            "Gender 2\n"
             "Secondary Phone\n"
             "Address\n"
-            "City\n"
+            "Cit y\n"
             "State\n"
             "Email Address\n"
-            "Notes Travel Hobbies Language etc\n"
-            "Time\n"
+            "NotesT ravel Hobbies Language etc\n"
+            "T ime\n"
+            "T ime_2\n"
+            "Date_2\n"
             "Date\n"
             "Home\n"
             "Work\n"
             "Other\n"
-            "Special Instructions\n"
+            "S pecial Instructions\n"
             "Carrier\n"
             "Face Amount\n"
             "Product\n"
-            "Proposed Premium\n"
+            "Prop osed Premium\n"
+            "Financial Advisor Name\n"
+            "Stat e of Issue\n"
+            "ROP\n"
+            "Rate Class quot ed\n"
+            "Universal Life\n"
+            "Whole Life\n"
+            "Index UL\n"
+            "Variable Life\n"
+            "LTC Rider\n"
+            "Last Survivor\n"
+            "Will new insurance replace any inforce i nsurance\n"
             "Financial Advisor Name\n"
             "Firm\n"
             "Email\n"
@@ -157,6 +174,7 @@ if uploaded_file is not None:
             "Licensed in\n"
             "Licensed in State of Insured\n"
             "Advisor Appointed with Carrier & PSF\n"
+            "Date_3\n"
             "Zip Code\n"
             "Trust to be established\n"
             "Text Field0\n"

@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  streamlit:
+    image: streamlit:3.12.0  # Adjust the image name and tag accordingly
+    ports:
+      - "8501:8501"
+    deploy:
+      replicas: 3

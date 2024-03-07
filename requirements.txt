@@ -21,3 +21,5 @@ fpdf
 reportlab
 pytesseract
 fillpdf
+streamlit
+python-poppler
