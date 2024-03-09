@@ -122,19 +122,23 @@ if uploaded_file is not None:
     input_params = {
         "debug": False,
         "prompt": (
-            "Given a list of fields with empty values in the format 'Field Name: ', followed by raw text containing client information, your task is to extract and match field names mentioned in the raw text with the provided list of fields. If a field name or a potentially similar piece of information exists in the raw text, extract the corresponding value and output the final structure in the format 'Field Name: Value' Please keep in mind that you are not allowed to change the spelling of the Field Name that I am giving you not even if there are extra spaces or mistakes.\n\n"
+           "You are given a list of fields below, followed by raw text."
+           "Raw text data is containing information related to insurance policies, clients, and advisors. Your task is to parse this raw text and extract the relevant information that could be filled into the fields provided above. "
+           "The extracted information should be presented in the format: FieldName: Value"
+           "Your model should be able to understand the context of the raw text and identify the information that corresponds to each field accurately. Make sure the output follows the exact structure of the provided field list, "
+           "maintaining the same field names and formatting conventions."
+           "In accordance with the provided structure, if the field name is 'Ci ty,' the model should ensure that it adheres to this exact naming convention, even if it encounters 'City' in the raw text. Follow this for entire given Fields' list"
+            "Please proceed with parsing the raw text and generating the required output."
             "SVP Name\n"
             "Primary Insured\n"
             "Primary DOB Month\n"
             "Primary DOB Date\n"
             "Primary DOB Year\n"
-            "Gender 1\n"
             "Primary Phone\n"
             "Second Insured\n"
             "Secondary DOB Month\n"
             "Secondary DOB Date\n"
             "Secondary DOB Year\n"
-            "Gender 2\n"
             "Secondary Phone\n"
             "Address\n"
             "Cit y\n"
@@ -145,8 +149,6 @@ if uploaded_file is not None:
             "T ime_2\n"
             "Date_2\n"
             "Date\n"
-            "Home\n"
-            "Work\n"
             "Other\n"
             "S pecial Instructions\n"
             "Carrier\n"
@@ -179,18 +181,20 @@ if uploaded_file is not None:
             "Trust to be established\n"
             "Text Field0\n"
             "Ownership\n"
-
             "\nRaw Text:\n"
             "{}"  # Placeholder for the raw text
         ).format(edited_text),
         "temperature": 0.5,
-        "system_prompt": "Given a list of fields with empty values in the format 'Field Name: ', followed by raw text containing client information, your task is to extract and match field names mentioned in the raw text with the provided list of fields. If a field name or a potentially similar piece of information exists in the raw text, extract the corresponding value and output the final structure in the format 'Field Name: Value'.",
+        "system_prompt":"Please keep in mind that I have given you the list below and there are some field names like Gender 1,  or T ime or T ime_2 or C ity. "
+                        "Now if you find City then dont give me City but keep in mind the given strcture and keep it as C ity etc. Also Give me full list as given by me. "
+                        "In case you are unable to extract anything like given list then leave the value empty as ''.\n"
+,
         "max_new_tokens": 500,
         "min_new_tokens": -1
     }
 
     # Confirmation button
-    confirm_button = st.button("Confirm Selection and Fill the PDF")
+    confirm_button = st.button("Confirm Selection")
 
     if confirm_button:
         # Stream the output of the llama-2-70b-chat model
@@ -202,27 +206,36 @@ if uploaded_file is not None:
         output_text = ''.join(map(str, output_events))
         print(output_text)
 
-        # Assume edited_text is the edited text from the text area
-        edited_lines = output_text.split('\n')
-        data_dict = {}
-        for line in edited_lines:
-            parts = line.split(':')
-            key = parts[0].strip()
-            value = parts[1].strip() if len(parts) > 1 else None
-            data_dict[key] = value
+        # Display the edited text
+        st.subheader("Edited Text:")
+        edited_text1 = st.text_area("Edit the extracted text", output_text)
+        print(edited_text1)
 
-        # Save edited text to a new PDF
-        fillpdfs.write_fillable_pdf('form.pdf', 'new.pdf', data_dict)
+        # Confirmation button for filling the PDF
+        confirm_button1 = st.button("Confirm Fill")
 
-        # Provide download link for the generated PDF
-        st.subheader("Download Generated PDF:")
+        if confirm_button1:
+            # Assume edited_text1 is the edited text from the text area
+            edited_lines = edited_text1.split('\n')
+            data_dict = {}
+            for line in edited_lines:
+                parts = line.split(':')
+                key = parts[0].strip()
+                value = parts[1].strip() if len(parts) > 1 else None
+                data_dict[key] = value
 
-        # Display PDF file
-        pdf_path = "new.pdf"
+            # Save edited text to a new PDF
+            fillpdfs.write_fillable_pdf('form.pdf', 'new.pdf', data_dict)
 
-        # Display a download button for the PDF file
-        with open(pdf_path, "rb") as f:
-            pdf_bytes = f.read()
-        pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
-        st.markdown(f'<a href="data:application/pdf;base64,{pdf_b64}" download="new.pdf">Download PDF file</a>',
-                    unsafe_allow_html=True)
+            # Provide download link for the generated PDF
+            st.subheader("Download Generated PDF:")
+
+            # Display PDF file
+            pdf_path = "new.pdf"
+
+            # Display a download button for the PDF file
+            with open(pdf_path, "rb") as f:
+                pdf_bytes = f.read()
+            pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
+            st.markdown(f'<a href="data:application/pdf;base64,{pdf_b64}" download="new.pdf">Download PDF file</a>',
+                        unsafe_allow_html=True)
