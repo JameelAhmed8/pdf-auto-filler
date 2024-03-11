@@ -73,169 +73,230 @@ def add_page_text(canvas_obj, text):
 
 
 # Streamlit app
-st.title("PDF Text Editor and Converter")
+st.title("Fintech AI MVP")
 
 uploaded_file = st.file_uploader("Upload a PDF", type=["pdf"])
 
 if uploaded_file is not None:
     st.success("File successfully uploaded!")
+    with st.spinner("Processing file, will take a bit of time..."):
+        # Save the uploaded file to a temporary location
+        pdf_path = os.path.join('./temp', 'uploaded_pdf.pdf')
+        with open(pdf_path, 'wb') as pdf_file:
+            pdf_file.write(uploaded_file.read())
 
-    # Save the uploaded file to a temporary location
-    pdf_path = os.path.join('./temp', 'uploaded_pdf.pdf')
-    with open(pdf_path, 'wb') as pdf_file:
-        pdf_file.write(uploaded_file.read())
+        text_content = convert_pdf_to_images_and_create_pdf(
+            pdf_path=pdf_path,
+            output_folder='./temp',
+            output_pdf_path='./temp/output_searchable.pdf'
+        )
 
+        # Display editable text
+        st.subheader("Extracted Text:")
+        edited_text = st.text_area("Edit the extracted text", "\n".join(map(str, text_content)), height=40)
 
-    text_content = convert_pdf_to_images_and_create_pdf(
-        pdf_path=pdf_path,
-        output_folder='./temp',
-        output_pdf_path='./temp/output_searchable.pdf'
-    )
+        # Path to the folder containing PDF files
+        pdf_folder = "./pdfs"
 
-    # Display editable text
-    st.subheader("Extracted Text:")
-    edited_text = st.text_area("Edit the extracted text", "\n".join(map(str, text_content)))
+        # List PDF files in the folder
+        pdf_files = [f for f in os.listdir(pdf_folder) if f.endswith('.pdf')]
 
-    # Path to the folder containing PDF files
-    pdf_folder = "./pdfs"
+        # Dropdown to select a PDF file
+        selected_pdf = st.selectbox("Select a PDF file", pdf_files)
 
-    # List PDF files in the folder
-    pdf_files = [f for f in os.listdir(pdf_folder) if f.endswith('.pdf')]
+        # Read the selected PDF file
+        pdf_path = os.path.join(pdf_folder, selected_pdf)
+        with open(pdf_path, "rb") as file:
+            pdf_bytes = file.read()
 
-    # Dropdown to select a PDF file
-    selected_pdf = st.selectbox("Select a PDF file", pdf_files)
+        # Convert the PDF to base64
+        pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+        pdf_display = f'<embed src="data:application/pdf;base64,{pdf_base64}" width="700" height="1000" type="application/pdf">'
 
-    # Read the selected PDF file
-    pdf_path = os.path.join(pdf_folder, selected_pdf)
-    with open(pdf_path, "rb") as file:
-        pdf_bytes = file.read()
+        # Display the PDF
+        st.markdown(pdf_display, unsafe_allow_html=True)
 
-    # Convert the PDF to base64
-    pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
-    pdf_display = f'<embed src="data:application/pdf;base64,{pdf_base64}" width="700" height="1000" type="application/pdf">'
+        # Define the input parameters for the replication stream
+        input_params = {
+            "debug": False,
+            "prompt": (
+                """Please provide the following information extracted from the document:
+                SVP Name:
+                Primary Insured:
+                Primary DOB Month:
+                Primary DOB Date:
+                Primary DOB Year:
+                Primary Phone:
+                Secondary Insured:
+                Secondary DOB Month:
+                Secondary DOB Date:
+                Secondary DOB Year:
+                Secondary Phone:
+                Address:
+                City:
+                State:
+                Email Address:
+                Notes:
+                Time:
+                Time_2:
+                Date_2:
+                Date:
+                Other:
+                Special Instructions:
+                Carrier:
+                Face Amount:
+                Product:
+                Proposed Premium:
+                Financial Advisor Name:
+                State of Issue:
+                ROP:
+                Rate Class Quoted:
+                Universal Life:
+                Whole Life:
+                Index UL:
+                Variable Life:
+                LTC Rider:
+                Last Survivor:
+                Will New Insurance Replace Any Inforce Insurance:
+                Financial Advisor Name:
+                Firm:
+                Email:
+                Branch City:
+                Business Phone 123:
+                Business Phone 456:
+                Business Phone 78910:
+                Licensed In:
+                Licensed In State of Insured:
+                Advisor Appointed with Carrier & PSF:
+                Date_3:
+                Zip Code:
+                Trust to be Established:
+                Ownership:
+                Raw Text:
+                {}""" # Placeholder for the raw text
+            ).format(edited_text),
+            "temperature": 0.5,
+            "system_prompt": """
+                You are given a list of fields below, followed by raw text. Raw text data is containing information related to insurance policies, clients, and advisors. Your task is to parse this raw text and extract the relevant information that could be filled into the fields provided above. The extracted information should be presented in the format: Key: Value
+                Your model should be able to understand the context of the raw text and identify the information that corresponds to each field accurately. Make sure the output follows the exact structure of the provided field list, maintaining the same field names and formatting conventions. Please keep in mind that I have given you the list below and you need to extract similar info as asked by keys to find. In case you are unable to extract anything like given list then leave the value empty as ''.
+            """,
+            "max_new_tokens": 500,
+            "min_new_tokens": -1
+        }
 
-    # Display the PDF
-    st.markdown(pdf_display, unsafe_allow_html=True)
+        if "form_extracted" not in st.session_state:
+            st.session_state.form_extracted = None
+            st.session_state.edited_text = None
 
+        if st.button("Confirm Selection"):
+            with st.spinner("Extracting relevant data..."):
+                # Stream the output of the llama-2-70b-chat model
+                output_events = []
+                for event in replicate.stream("meta/llama-2-70b-chat", input=input_params):
+                    output_events.append(event)
 
-    # Define the input parameters for the replication stream
-    input_params = {
-        "debug": False,
-        "prompt": (
-           "You are given a list of fields below, followed by raw text."
-           "Raw text data is containing information related to insurance policies, clients, and advisors. Your task is to parse this raw text and extract the relevant information that could be filled into the fields provided above. "
-           "The extracted information should be presented in the format: FieldName: Value"
-           "Your model should be able to understand the context of the raw text and identify the information that corresponds to each field accurately. Make sure the output follows the exact structure of the provided field list, "
-           "maintaining the same field names and formatting conventions."
-           "In accordance with the provided structure, if the field name is 'Ci ty,' the model should ensure that it adheres to this exact naming convention, even if it encounters 'City' in the raw text. Follow this for entire given Fields' list"
-            "Please proceed with parsing the raw text and generating the required output."
-            "SVP Name\n"
-            "Primary Insured\n"
-            "Primary DOB Month\n"
-            "Primary DOB Date\n"
-            "Primary DOB Year\n"
-            "Primary Phone\n"
-            "Second Insured\n"
-            "Secondary DOB Month\n"
-            "Secondary DOB Date\n"
-            "Secondary DOB Year\n"
-            "Secondary Phone\n"
-            "Address\n"
-            "Cit y\n"
-            "State\n"
-            "Email Address\n"
-            "NotesT ravel Hobbies Language etc\n"
-            "T ime\n"
-            "T ime_2\n"
-            "Date_2\n"
-            "Date\n"
-            "Other\n"
-            "S pecial Instructions\n"
-            "Carrier\n"
-            "Face Amount\n"
-            "Product\n"
-            "Prop osed Premium\n"
-            "Financial Advisor Name\n"
-            "Stat e of Issue\n"
-            "ROP\n"
-            "Rate Class quot ed\n"
-            "Universal Life\n"
-            "Whole Life\n"
-            "Index UL\n"
-            "Variable Life\n"
-            "LTC Rider\n"
-            "Last Survivor\n"
-            "Will new insurance replace any inforce i nsurance\n"
-            "Financial Advisor Name\n"
-            "Firm\n"
-            "Email\n"
-            "Branch City\n"
-            "Business Phone 123\n"
-            "Business Phone 456\n"
-            "Business Phone 78910\n"
-            "Licensed in\n"
-            "Licensed in State of Insured\n"
-            "Advisor Appointed with Carrier & PSF\n"
-            "Date_3\n"
-            "Zip Code\n"
-            "Trust to be established\n"
-            "Text Field0\n"
-            "Ownership\n"
-            "\nRaw Text:\n"
-            "{}"  # Placeholder for the raw text
-        ).format(edited_text),
-        "temperature": 0.5,
-        "system_prompt":"Please keep in mind that I have given you the list below and there are some field names like Gender 1,  or T ime or T ime_2 or C ity. "
-                        "Now if you find City then dont give me City but keep in mind the given strcture and keep it as C ity etc. Also Give me full list as given by me. "
-                        "In case you are unable to extract anything like given list then leave the value empty as ''.\n"
-,
-        "max_new_tokens": 500,
-        "min_new_tokens": -1
-    }
+                # Convert the list of output events to a single string
+                output_text = ''.join(map(str, output_events))
+                print(output_text)
 
-    # Confirmation button
-    confirm_button = st.button("Confirm Selection")
+                st.session_state.form_extracted = output_text
 
-    if confirm_button:
-        # Stream the output of the llama-2-70b-chat model
-        output_events = []
-        for event in replicate.stream("meta/llama-2-70b-chat", input=input_params):
-            output_events.append(event)
+        if st.session_state.form_extracted is not None:
+            # Display the edited text
+            st.subheader("Edited Text:")
+            edited_text1 = st.text_area("Edit the extracted text", st.session_state.form_extracted)
+            st.session_state.edited_text = edited_text1
+            # print('Edited: ', edited_text1)
 
-        # Convert the list of output events to a single string
-        output_text = ''.join(map(str, output_events))
-        print(output_text)
+        if st.session_state.edited_text is not None and st.button("Confirm Fill"):
+            with st.spinner("Filling PDF..."):
+                # Split the input text into lines
+                lines = st.session_state.edited_text.split("\n")
+                data_dict = {}
 
-        # Display the edited text
-        st.subheader("Edited Text:")
-        edited_text1 = st.text_area("Edit the extracted text", output_text)
-        print(edited_text1)
+                # Iterate over the lines and add the key-value pairs to the dictionary
+                for line in lines:
+                    if ":" in line:
+                        key, value = line.split(":", 1)
+                        data_dict[key.strip()] = value.strip()
 
-        # Confirmation button for filling the PDF
-        confirm_button1 = st.button("Confirm Fill")
+                # Create a new dictionary to store the mapped key-value pairs
+                mapped_data_dict = {}
+                new_key_mapping = {
+                    "SVP Name": "SVP Name",
+                    "Primary Insured": "Primary Insured",
+                    "Primary DOB Month": "Primary DOB Month",
+                    "Primary DOB Date": "Primary DOB Date",
+                    "Primary DOB Year": "Primary DOB Year",
+                    "Primary Phone": "Primary Phone",
+                    "Second Insured": "Secondary Insured",
+                    "Secondary DOB Month": "Secondary DOB Month",
+                    "Secondary DOB Date": "Secondary DOB Date",
+                    "Secondary DOB Year": "Secondary DOB Year",
+                    "Secondary Phone": "Secondary Phone",
+                    "Address": "Address",
+                    "Cit y": "City",
+                    "State": "State",
+                    "Email Address": "Email Address",
+                    "NotesT ravel Hobbies Language etc": "Notes",
+                    "T ime": "Time",
+                    "T ime_2": "Time_2",
+                    "Date_2": "Date_2",
+                    "Date": "Date",
+                    "Other": "Other",
+                    "S pecial Instructions": "Special Instructions",
+                    "Carrier": "Carrier",
+                    "Face Amount": "Face Amount",
+                    "Product": "Product",
+                    "Prop osed Premium": "Proposed Premium",
+                    "Financial Advisor Name": "Financial Advisor Name",
+                    "Stat e of Issue": "State of Issue",
+                    "ROP": "ROP",
+                    "Rate Class quot ed": "Rate Class Quoted",
+                    # "Universal Life": "Universal Life",
+                    # "Whole Life": "Whole Life",
+                    # "Index UL": "Index UL",
+                    # "Variable Life": "Variable Life",
+                    # "LTC Rider": "LTC Rider",
+                    # "Last Survivor": "Last Survivor",
+                    # "Will new insurance replace any inforce i nsurance": "Will New Insurance Replace Any Inforce Insurance",
+                    "Firm": "Firm",
+                    "Email": "Email",
+                    "Branch City": "Branch City",
+                    "Business Phone 123": "Business Phone 123",
+                    "Business Phone 456": "Business Phone 456",
+                    "Business Phone 78910": "Business Phone 78910",
+                    "Licensed in": "Licensed In",
+                    # "Licensed in State of Insured": "Licensed In State of Insured",
+                    # "Advisor Appointed with Carrier & PSF": "Advisor Appointed with Carrier & PSF",
+                    "Date_3": "Date_3",
+                    "Zip Code": "Zip Code",
+                    "Trust to be established": "Trust to be Established",
+                    # "Text Field0": "Text Field0",
+                    "Ownership": "Ownership",
+                }
 
-        if confirm_button1:
-            # Assume edited_text1 is the edited text from the text area
-            edited_lines = edited_text1.split('\n')
-            data_dict = {}
-            for line in edited_lines:
-                parts = line.split(':')
-                key = parts[0].strip()
-                value = parts[1].strip() if len(parts) > 1 else None
-                data_dict[key] = value
+                # Iterate over the keys in the new key mapping
+                for new_key, old_key in new_key_mapping.items():
+                    # Get the value from the old key
+                    value = data_dict.get(old_key)
+                    # If the value is not None, add it to the new dictionary with the new key
+                    if value is not None and value != "N/A":
+                        mapped_data_dict[new_key] = value
+                print('Mapped dict: ', mapped_data_dict)
+                # Save edited text to a new PDF
+                fillpdfs.write_fillable_pdf('form.pdf', 'new.pdf', mapped_data_dict)
+                print('fill pdf')
 
-            # Save edited text to a new PDF
-            fillpdfs.write_fillable_pdf('form.pdf', 'new.pdf', data_dict)
+                # Provide download link for the generated PDF
+                st.subheader("Download Generated PDF:")
 
-            # Provide download link for the generated PDF
-            st.subheader("Download Generated PDF:")
+                # Display PDF file
+                pdf_path = "new.pdf"
 
-            # Display PDF file
-            pdf_path = "new.pdf"
-
-            # Display a download button for the PDF file
-            with open(pdf_path, "rb") as f:
-                pdf_bytes = f.read()
-            pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
-            st.markdown(f'<a href="data:application/pdf;base64,{pdf_b64}" download="new.pdf">Download PDF file</a>',
-                        unsafe_allow_html=True)
+                # Display a download button for the PDF file
+                with open(pdf_path, "rb") as f:
+                    pdf_bytes = f.read()
+                pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
+                st.markdown(f'<a href="data:application/pdf;base64,{pdf_b64}" download="new.pdf">Download PDF file</a>',
+                            unsafe_allow_html=True)
